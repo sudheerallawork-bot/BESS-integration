@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Analysis: BESS Integration in Solar PV Plants</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Calm Harmony -->
+    <!-- Application Structure Plan: A thematic, single-page application centered on a dynamic case study dashboard. The landing page now features a "real-time" data simulation for a specific case study, directly addressing the user's request. The new "Technical Specs," "Due Diligence," "Step-by-Step Integration," and "Asset Assessment" tabs provide supporting deep dives, creating a comprehensive resource. The navigation remains fixed, allowing for non-linear exploration. This design prioritizes a data-driven narrative while providing all the necessary technical context in a logical, explorable structure. -->
+    <!-- Visualization & Content Choices: 1. Real-time Power Flow (Line Chart): Goal=Show Change over time, Method=Chart.js with live data simulation, Interaction=Start/Stop buttons. Justification=Directly simulates real-world data and makes the concept of BESS power flow tangible. 2. Consolidated Diagram (HTML/CSS): Goal=Show Relationships/Organize, Method=HTML/CSS grid/flexbox. Justification=Visually represents the complete system architecture without requiring complex external libraries or SVG. 3. Technical Specs/Due Diligence (Interactive Cards/Lists): Goal=Organize/Inform, Method=HTML/CSS Grid. Justification=Presents key information in an easily scannable format. 4. Financial Model (Grouped Bar Chart): Goal=Compare Scenarios, Method=Chart.js, Interaction=Buttons to switch metrics. Justification=Effective for scenario comparison. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f9fa;
+            color: #212529;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 45vh;
+            max-height: 450px;
+        }
+        .sidebar-link {
+            transition: all 0.2s ease-in-out;
+        }
+        .sidebar-link.active, .sidebar-link:hover {
+            background-color: #e9ecef;
+            color: #000;
+            transform: translateX(4px);
+        }
+        .content-section {
+            display: none;
+        }
+        .content-section.active {
+            display: block;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .custom-card {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .custom-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .tab-button.active {
+            background-color: #343a40;
+            color: #ffffff;
+        }
+        .diagram-box {
+            border: 2px solid #dee2e6;
+            background-color: #ffffff;
+            position: relative;
+            padding: 1.5rem;
+        }
+        .diagram-arrow {
+            position: relative;
+            width: 100%;
+            height: 2px;
+            background-color: #495057;
+            margin: 1rem 0;
+        }
+        .diagram-arrow::after {
+            content: '';
+            position: absolute;
+            right: -1px;
+            top: -4px;
+            width: 0;
+            height: 0;
+            border-top: 5px solid transparent;
+            border-bottom: 5px solid transparent;
+            border-left: 10px solid #495057;
+        }
+        .step-icon {
+            font-size: 2.5rem;
+            color: #495057;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="flex flex-col md:flex-row min-h-screen">
+        <nav class="w-full md:w-64 bg-white md:border-r border-b md:border-b-0 border-gray-200 flex-shrink-0">
+            <div class="p-6">
+                <h1 class="text-xl font-bold text-gray-800">BESS & PV Analysis</h1>
+                <p class="text-sm text-gray-500 mt-1">Interactive Report</p>
+            </div>
+            <ul class="flex flex-row md:flex-col p-4 md:p-2 space-x-2 md:space-x-0 md:space-y-1 overflow-x-auto">
+                <li><a href="#" class="sidebar-link active flex items-center p-3 rounded-lg text-gray-700 font-medium" data-target="overview">
+                    <span class="mr-3">🏠</span> Kavaratti Case Study
+                </a></li>
+                <li><a href="#" class="sidebar-link flex items-center p-3 rounded-lg text-gray-700 font-medium" data-target="assessment-checklist">
+                    <span class="mr-3">✅</span> Asset Assessment Checklist
+                </a></li>
+                <li><a href="#" class="sidebar-link flex items-center p-3 rounded-lg text-gray-700 font-medium" data-target="integration-process">
+                    <span class="mr-3">⚙️</span> Step-by-Step Integration
+                </a></li>
+                <li><a href="#" class="sidebar-link flex items-center p-3 rounded-lg text-gray-700 font-medium" data-target="tech">
+                    <span class="mr-3">🔧</span> Tech Deep Dive
+                </a></li>
+                <li><a href="#" class="sidebar-link flex items-center p-3 rounded-lg text-gray-700 font-medium" data-target="tech-spec">
+                    <span class="mr-3">📋</span> Technical Specs
+                </a></li>
+                <li><a href="#" class="sidebar-link flex items-center p-3 rounded-lg text-gray-700 font-medium" data-target="economics">
+                    <span class="mr-3">💰</span> Economic Viability
+                </a></li>
+                <li><a href="#" class="sidebar-link flex items-center p-3 rounded-lg text-gray-700 font-medium" data-target="grid">
+                    <span class="mr-3">⚡️</span> Grid Services
+                </a></li>
+                <li><a href="#" class="sidebar-link flex items-center p-3 rounded-lg text-gray-700 font-medium" data-target="policy">
+                    <span class="mr-3">📜</span> Policy & Challenges
+                </a></li>
+            </ul>
+        </nav>
+
+        <main class="flex-1 p-4 sm:p-6 md:p-10">
+            <div id="overview" class="content-section active">
+                <h2 class="text-3xl font-bold text-gray-900 mb-4">Case Study: BESS Integration on Kavaratti Island</h2>
+                <p class="text-lg text-gray-600 mb-8 max-w-4xl">
+                    This interactive dashboard presents a simplified, "real-time" view of a key BESS case study. On Kavaratti Island, a BESS was integrated with an existing solar plant to reduce dependence on expensive and polluting diesel generators. The analysis below simulates a day in the life of the project, showing how the battery complements solar generation.
+                </p>
+                
+                <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200 mb-8">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-1">Simulated Real-time Power Flow</h3>
+                    <p class="text-gray-500 mb-4">Click "Start Simulation" to see how solar and battery power combine to meet demand. Solar generation is high during the day, and the battery discharges during peak evening hours when solar output drops.</p>
+                    <div class="flex justify-center space-x-4 mb-4">
+                        <button id="startSimBtn" class="px-6 py-2 bg-green-600 text-white rounded-lg font-medium shadow hover:bg-green-700">▶️ Start Simulation</button>
+                        <button id="stopSimBtn" class="px-6 py-2 bg-red-600 text-white rounded-lg font-medium shadow hover:bg-red-700">⏸️ Stop Simulation</button>
+                    </div>
+                    <div id="statusText" class="text-center font-semibold text-gray-700 mb-4">Simulation Stopped</div>
+                    <div class="chart-container">
+                        <canvas id="liveChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-4">Project Overview</h3>
+                        <p class="text-gray-600 mb-2"><span class="font-semibold">Objective:</span> Reduce reliance on diesel generators, enhance grid stability, and optimize the use of solar energy.</p>
+                        <p class="text-gray-600 mb-2"><span class="font-semibold">Key Challenge:</span> The island's grid was small and isolated, making it susceptible to fluctuations from solar power, requiring a flexible, dispatchable energy source.</p>
+                        <p class="text-gray-600 mb-2"><span class="font-semibold">Solution:</span> A BESS was integrated with the existing solar plant to absorb excess solar generation during the day and provide power during evening peaks, reducing diesel consumption.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-4">Key Outcomes</h3>
+                        <ul class="space-y-4">
+                            <li class="flex items-start">
+                                <span class="text-2xl mr-4">💰</span>
+                                <div>
+                                    <h4 class="font-semibold">Economic Savings</h4>
+                                    <p class="text-gray-600">The project significantly cut down on the high cost of importing and burning diesel, providing a strong return on investment.</p>
+                                </div>
+                            </li>
+                            <li class="flex items-start">
+                                <span class="text-2xl mr-4">🌿</span>
+                                <div>
+                                    <h4 class="font-semibold">Environmental Impact</h4>
+                                    <p class="text-gray-600">Reduced carbon emissions and air pollution, contributing to a cleaner, more sustainable energy future for the island.</p>
+                                </div>
+                            </li>
+                            <li class="flex items-start">
+                                <span class="text-2xl mr-4">⚙️</span>
+                                <div>
+                                    <h4 class="font-semibold">Grid Stability</h4>
+                                    <p class="text-gray-600">The BESS provided crucial frequency regulation and voltage support, ensuring the reliability of the local grid despite the high penetration of intermittent solar power.</p>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div id="assessment-checklist" class="content-section">
+                <h2 class="text-3xl font-bold text-gray-900 mb-4">Asset Assessment Checklist</h2>
+                <p class="text-lg text-gray-600 mb-8 max-w-4xl">
+                    This checklist can be used to perform a high-level assessment of any asset for BESS integration. A "Yes" answer to these questions indicates strong potential, but a full due diligence is always recommended.
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+                    <div class="custom-card bg-white p-6 rounded-xl border border-gray-200">
+                        <h3 class="text-xl font-semibold mb-2">Technical Suitability</h3>
+                        <ul class="space-y-2 text-gray-700">
+                            <li><span class="font-bold">Grid Interconnection:</span> Is there an existing grid interconnection point with available capacity?</li>
+                            <li><span class="font-bold">Space Availability:</span> Is there sufficient land or rooftop space for the BESS?</li>
+                            <li><span class="font-bold">System Compatibility:</span> Is the BESS compatible with the existing solar PV inverter?</li>
+                            <li><span class="font-bold">Power Quality:</span> Is the existing grid connection stable enough to support BESS operation?</li>
+                        </ul>
+                    </div>
+                    <div class="custom-card bg-white p-6 rounded-xl border border-gray-200">
+                        <h3 class="text-xl font-semibold mb-2">Economic Viability</h3>
+                        <ul class="space-y-2 text-gray-700">
+                            <li><span class="font-bold">Price Volatility:</span> Is there significant price volatility in the energy market for arbitrage?</li>
+                            <li><span class="font-bold">Peak Demand:</span> Does the asset have high peak demand charges that can be reduced by BESS?</li>
+                            <li><span class="font-bold">Ancillary Services:</span> Does the local grid operator pay for ancillary services (e.g., frequency regulation)?</li>
+                            <li><span class="font-bold">Tax Incentives:</span> Are there federal or local tax credits or subsidies available for storage?</li>
+                        </ul>
+                    </div>
+                     <div class="custom-card bg-white p-6 rounded-xl border border-gray-200">
+                        <h3 class="text-xl font-semibold mb-2">Regulatory & Policy Environment</h3>
+                        <ul class="space-y-2 text-gray-700">
+                            <li><span class="font-bold">Permitting:</span> Is the permitting process for energy storage clear and well-defined?</li>
+                            <li><span class="font-bold">Regulatory Framework:</span> Does the region have a supportive regulatory framework for BESS?</li>
+                            <li><span class="font-bold">Future Policy:</span> Are there clear indications of future policy support for storage deployment?</li>
+                        </ul>
+                    </div>
+                    <div class="custom-card bg-white p-6 rounded-xl border border-gray-200">
+                        <h3 class="text-xl font-semibold mb-2">Site & Logistics</h3>
+                        <ul class="space-y-2 text-gray-700">
+                            <li><span class="font-bold">Accessibility:</span> Is the site easily accessible for construction and maintenance?</li>
+                            <li><span class="font-bold">Safety & Security:</span> Can the site be secured to protect against fire, theft, and vandalism?</li>
+                            <li><span class="font-bold">Supply Chain:</span> Are there reliable suppliers and integrators available in the region?</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div id="integration-process" class="content-section">
+                <h2 class="text-3xl font-bold text-gray-900 mb-4">Step-by-Step BESS Integration</h2>
+                <p class="text-lg text-gray-600 mb-8 max-w-4xl">
+                    Integrating a Battery Energy Storage System (BESS) into an existing solar PV plant is a multi-phase process. This section breaks down the key steps involved, from initial planning to full-scale operation.
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="custom-card bg-white p-6 rounded-xl border border-gray-200 text-center">
+                        <div class="step-icon">🔬</div>
+                        <h3 class="text-lg font-semibold my-2">Step 1: Feasibility Study</h3>
+                        <p class="text-sm text-gray-600">Assess the existing site, grid connection, and energy profile. Model potential revenue streams (arbitrage, ancillary services) and evaluate the project's financial viability (NPV, IRR).</p>
+                    </div>
+                    <div class="custom-card bg-white p-6 rounded-xl border border-gray-200 text-center">
+                        <div class="step-icon">📏</div>
+                        <h3 class="text-lg font-semibold my-2">Step 2: Technical Design</h3>
+                        <p class="text-sm text-gray-600">Select the BESS size (MWh), power rating (MW), and battery chemistry. Determine the optimal system architecture (AC vs. DC coupled) and design the site layout, electrical schematics, and control systems.</p>
+                    </div>
+                    <div class="custom-card bg-white p-6 rounded-xl border border-gray-200 text-center">
+                        <div class="step-icon">📝</div>
+                        <h3 class="text-lg font-semibold my-2">Step 3: Permitting & Approvals</h3>
+                        <p class="text-sm text-gray-600">Secure necessary permits from local authorities, including land use, construction, and electrical approvals. Complete the grid interconnection study and sign a power purchase agreement or other contracts.</p>
+                    </div>
+                    <div class="custom-card bg-white p-6 rounded-xl border border-gray-200 text-center">
+                        <div class="step-icon">🏗️</div>
+                        <h3 class="text-lg font-semibold my-2">Step 4: Procurement & Construction</h3>
+                        <p class="text-sm text-gray-600">Procure all major components (battery racks, inverters, transformers). Prepare the site, pour foundations, and install all equipment, including electrical wiring, safety systems, and monitoring hardware.</p>
+                    </div>
+                    <div class="custom-card bg-white p-6 rounded-xl border border-gray-200 text-center">
+                        <div class="step-icon">✔️</div>
+                        <h3 class="text-lg font-semibold my-2">Step 5: Commissioning</h3>
+                        <p class="text-sm text-gray-600">Perform a series of tests to verify all systems are working correctly. This includes electrical tests, system-level performance tests, and full integration testing with the existing PV plant and grid.</p>
+                    </div>
+                    <div class="custom-card bg-white p-6 rounded-xl border border-gray-200 text-center">
+                        <div class="step-icon">📈</div>
+                        <h3 class="text-lg font-semibold my-2">Step 6: Operations & Maintenance</h3>
+                        <p class="text-sm text-gray-600">Begin commercial operation. Continuously monitor system performance, battery health, and revenue generation. Perform scheduled maintenance and a full-scale review of all operational data.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tech" class="content-section">
+                <h2 class="text-3xl font-bold text-gray-900 mb-4">Technical Deep Dive: AC vs. DC Coupling</h2>
+                <p class="text-lg text-gray-600 mb-8 max-w-4xl">
+                    When retrofitting a BESS into an existing solar plant, the primary technical decision is the electrical coupling architecture. The choice between AC-coupled and DC-coupled systems involves trade-offs in efficiency, cost, and installation complexity. This section provides a clear comparison to illustrate these differences.
+                </p>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200">
+                        <h3 class="text-2xl font-semibold text-center mb-4">AC-Coupled Architecture</h3>
+                        <p class="text-gray-600 mb-6 text-center">The BESS is connected on the AC side of the system. The PV and BESS have separate inverters, offering modularity and flexibility, making it a common choice for retrofits.</p>
+                        <div class="diagram-box p-4 rounded-lg">
+                            <div class="text-center font-medium bg-yellow-100 p-2 rounded">PV Array</div>
+                            <div class="diagram-arrow"></div>
+                            <div class="text-center font-medium bg-blue-100 p-2 rounded">PV Inverter (DC to AC)</div>
+                            <div class="diagram-arrow"></div>
+                            <div class="text-center font-bold bg-gray-200 p-3 rounded">AC Bus</div>
+                            <div class="flex justify-between items-center mt-4">
+                                <div class="w-1/2 text-center">
+                                    <div class="diagram-arrow rotate-90 origin-bottom-right !w-16 !-mt-8 !-mb-8 !mx-auto"></div>
+                                    <div class="text-center font-medium bg-green-100 p-2 rounded">BESS Inverter (Bi-directional)</div>
+                                    <div class="diagram-arrow rotate-90 origin-top-right !w-16 !-mt-8 !-mb-8 !mx-auto"></div>
+                                    <div class="text-center font-medium bg-purple-100 p-2 rounded">Battery</div>
+                                </div>
+                                <div class="w-1/2 text-center">
+                                    <div class="diagram-arrow !w-full"></div>
+                                    <div class="text-center font-medium bg-red-100 p-2 rounded">To Grid</div>
+                                </div>
+                            </div>
+                        </div>
+                        <ul class="mt-6 space-y-2 text-gray-700">
+                            <li><span class="font-semibold text-green-600">Pro:</span> High flexibility, easier to retrofit.</li>
+                            <li><span class="font-semibold text-green-600">Pro:</span> Modular and scalable.</li>
+                            <li><span class="font-semibold text-red-600">Con:</span> Lower round-trip efficiency due to multiple power conversions.</li>
+                            <li><span class="font-semibold text-red-600">Con:</span> Higher equipment cost (two inverters).</li>
+                        </ul>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200">
+                        <h3 class="text-2xl font-semibold text-center mb-4">DC-Coupled Architecture</h3>
+                        <p class="text-gray-600 mb-6 text-center">The BESS is connected on the DC side, sharing a DC bus and a single hybrid inverter with the PV array. This design is more efficient and can capture otherwise lost energy.</p>
+                         <div class="diagram-box p-4 rounded-lg">
+                            <div class="flex justify-around items-start">
+                                <div class="text-center font-medium bg-yellow-100 p-2 rounded w-2/5">PV Array</div>
+                                <div class="text-center font-medium bg-purple-100 p-2 rounded w-2/5">Battery</div>
+                            </div>
+                            <div class="flex justify-around items-start mt-4">
+                                <div class="diagram-arrow rotate-90 origin-bottom !w-12 !-mt-6 !-mb-6 !mx-auto"></div>
+                                <div class="diagram-arrow rotate-90 origin-bottom !w-12 !-mt-6 !-mb-6 !mx-auto"></div>
+                            </div>
+                            <div class="text-center font-bold bg-gray-200 p-3 rounded">DC Bus</div>
+                            <div class="diagram-arrow"></div>
+                            <div class="text-center font-medium bg-blue-100 p-2 rounded">Hybrid Inverter (DC to AC)</div>
+                            <div class="diagram-arrow"></div>
+                            <div class="text-center font-medium bg-red-100 p-2 rounded">To Grid</div>
+                        </div>
+                        <ul class="mt-6 space-y-2 text-gray-700">
+                            <li><span class="font-semibold text-green-600">Pro:</span> Higher round-trip efficiency (up to 98%).</li>
+                            <li><span class="font-semibold text-green-600">Pro:</span> Lower equipment cost (one inverter).</li>
+                            <li><span class="font-semibold text-green-600">Pro:</span> Can capture "clipping" losses and may qualify for tax credits.</li>
+                            <li><span class="font-semibold text-red-600">Con:</span> Less flexible for some retrofits; can be more complex to design.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tech-spec" class="content-section">
+                <h2 class="text-3xl font-bold text-gray-900 mb-4">Technical Specifications: Kavaratti Island</h2>
+                <p class="text-lg text-gray-600 mb-8 max-w-4xl">
+                    This section details the key technical components of the Kavaratti Island project. The diagram below shows how the solar, battery, and diesel systems are integrated to serve the island's demand. Below that, you can find the specific technical ratings and equipment types used.
+                </p>
+                <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200 mb-8">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4 text-center">System Integration Diagram</h3>
+                    <div class="diagram-box p-4 rounded-lg">
+                        <div class="flex items-start justify-center space-x-8">
+                            <div class="text-center">
+                                <div class="text-4xl">☀️</div>
+                                <div class="font-medium bg-yellow-100 p-2 rounded mt-2">Solar Array</div>
+                                <div class="w-16 h-2 bg-gray-400 mx-auto my-2"></div>
+                                <div class="text-center font-medium bg-blue-100 p-2 rounded">PV Inverter</div>
+                            </div>
+                            <div class="text-center mt-20">
+                                <div class="text-4xl">🔋</div>
+                                <div class="font-medium bg-purple-100 p-2 rounded mt-2">BESS</div>
+                                <div class="w-16 h-2 bg-gray-400 mx-auto my-2"></div>
+                                <div class="text-center font-medium bg-green-100 p-2 rounded">BESS Inverter</div>
+                            </div>
+                            <div class="text-center mt-20">
+                                <div class="text-4xl">⛽</div>
+                                <div class="font-medium bg-red-100 p-2 rounded mt-2">Diesel Gen-sets</div>
+                            </div>
+                        </div>
+                        <div class="flex justify-center mt-4">
+                            <div class="w-full h-2 bg-gray-400"></div>
+                            <div class="h-8 w-2 bg-gray-400 -mt-8"></div>
+                            <div class="h-8 w-2 bg-gray-400 -mt-8"></div>
+                        </div>
+                        <div class="flex justify-center -mt-8">
+                           <div class="text-center font-bold bg-gray-200 p-3 rounded">AC Bus / Island Grid</div>
+                        </div>
+                        <div class="flex justify-center mt-2">
+                             <div class="h-8 w-2 bg-gray-400"></div>
+                        </div>
+                         <div class="text-center">
+                            <div class="text-4xl mb-2">🏘️</div>
+                            <div class="font-medium bg-gray-100 p-2 rounded">Local Loads</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4">Key Component Specifications</h3>
+                    <ul class="space-y-3 text-gray-700">
+                        <li><span class="font-bold">Solar PV Plant Capacity:</span> 250 kWp</li>
+                        <li><span class="font-bold">BESS Capacity (Energy):</span> 500 kWh</li>
+                        <li><span class="font-bold">BESS Inverter Capacity (Power):</span> 250 kVA</li>
+                        <li><span class="font-bold">BESS Type:</span> Lithium-Ion (LFP Chemistry)</li>
+                        <li><span class="font-bold">Inverter Type:</span> AC-Coupled (Bi-directional)</li>
+                        <li><span class="font-bold">Diesel Generators:</span> 3 units, 200 kVA each</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div id="economics" class="content-section">
+                <h2 class="text-3xl font-bold text-gray-900 mb-4">Economic Viability: A Financial Model</h2>
+                <p class="text-lg text-gray-600 mb-8 max-w-4xl">
+                    The decision to invest in BESS is primarily economic. This model compares a baseline 100 MWac solar plant with a retrofitted PV+BESS scenario, using illustrative data based on industry reports. The addition of BESS significantly improves financial outcomes by enabling new revenue streams.
+                </p>
+                <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200 mb-8">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4">Financial Outcome Comparison</h3>
+                    <div class="flex justify-center space-x-2 mb-4">
+                        <button class="tab-button active px-4 py-2 text-sm font-medium rounded-lg" data-metric="npv">NPV</button>
+                        <button class="tab-button px-4 py-2 text-sm font-medium rounded-lg" data-metric="irr">IRR</button>
+                        <button class="tab-button px-4 py-2 text-sm font-medium rounded-lg" data-metric="payback">Payback Period</button>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="financialModelChart"></canvas>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-4">The Power of "Value Stacking"</h3>
+                        <p class="text-gray-600 mb-4">BESS profitability comes from stacking multiple revenue streams. This chart shows an illustrative breakdown of annual revenue for the PV+BESS scenario.</p>
+                        <div class="chart-container !h-[35vh] !max-h-[350px]">
+                            <canvas id="revenueChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-4">Key Revenue Streams</h3>
+                        <ul class="space-y-4">
+                            <li class="flex items-start">
+                                <span class="text-2xl mr-4">📈</span>
+                                <div>
+                                    <h4 class="font-semibold">Energy Arbitrage</h4>
+                                    <p class="text-gray-600">Charging the battery when electricity prices are low and selling when prices are high.</p>
+                                </div>
+                            </li>
+                            <li class="flex items-start">
+                                <span class="text-2xl mr-4">⚙️</span>
+                                <div>
+                                    <h4 class="font-semibold">Ancillary Services</h4>
+                                    <p class="text-gray-600">Getting paid to provide grid-stabilizing services like frequency regulation.</p>
+                                </div>
+                            </li>
+                            <li class="flex items-start">
+                                <span class="text-2xl mr-4">📉</span>
+                                <div>
+                                    <h4 class="font-semibold">Peak Shaving</h4>
+                                    <p class="text-gray-600">Reducing high-demand charges by discharging during peak hours.</p>
+                                </div>
+                            </li>
+                             <li class="flex items-start">
+                                <span class="text-2xl mr-4">✂️</span>
+                                <div>
+                                    <h4 class="font-semibold">Clipping Recapture</h4>
+                                    <p class="text-gray-600">Storing excess solar energy that the inverter cannot handle, which would otherwise be lost.</p>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div id="grid" class="content-section">
+                <h2 class="text-3xl font-bold text-gray-900 mb-4">Grid Services: The Multi-Tool for a Modern Grid</h2>
+                <p class="text-lg text-gray-600 mb-8 max-w-4xl">
+                    BESS is far more than just a battery; it's a dynamic, multi-functional grid asset. Its ability to respond in milliseconds provides a wide range of services that are essential for a stable, reliable, and resilient power grid. Click on each service to learn more about its function and benefit.
+                </p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="custom-card bg-white p-6 rounded-xl border border-gray-200 text-center">
+                        <div class="text-4xl mb-4">📉</div>
+                        <h3 class="text-lg font-semibold mb-2">Peak Shaving</h3>
+                        <p class="text-gray-600 text-sm">Reduces strain on the grid during highest demand, deferring costly infrastructure upgrades.</p>
+                    </div>
+                    <div class="custom-card bg-white p-6 rounded-xl border border-gray-200 text-center">
+                        <div class="text-4xl mb-4">⏳</div>
+                        <h3 class="text-lg font-semibold mb-2">Load Shifting</h3>
+                        <p class="text-gray-600 text-sm">Shifts energy from times of low demand (and low cost) to periods of high demand.</p>
+                    </div>
+                    <div class="custom-card bg-white p-6 rounded-xl border border-gray-200 text-center">
+                        <div class="text-4xl mb-4">〰️</div>
+                        <h3 class="text-lg font-semibold mb-2">Frequency Regulation</h3>
+                        <p class="text-gray-600 text-sm">Instantly injects or absorbs power to maintain the grid's frequency at a stable 50/60 Hz.</p>
+                    </div>
+                    <div class="custom-card bg-white p-6 rounded-xl border border-gray-200 text-center">
+                        <div class="text-4xl mb-4">💡</div>
+                        <h3 class="text-lg font-semibold mb-2">Voltage Support</h3>
+                        <p class="text-gray-600 text-sm">Manages reactive power to prevent voltage sags or spikes, ensuring high power quality.</p>
+                    </div>
+                    <div class="custom-card bg-white p-6 rounded-xl border border-gray-200 text-center">
+                        <div class="text-4xl mb-4">☀️</div>
+                        <h3 class="text-lg font-semibold mb-2">Renewable Smoothing</h3>
+                        <p class="text-gray-600 text-sm">Transforms intermittent solar output into a predictable and dispatchable power source.</p>
+                    </div>
+                    <div class="custom-card bg-white p-6 rounded-xl border border-gray-200 text-center">
+                        <div class="text-4xl mb-4">🔌</div>
+                        <h3 class="text-lg font-semibold mb-2">Black Start</h3>
+                        <p class="text-gray-600 text-sm">Helps restore power to the grid after a complete blackout, enhancing overall resilience.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="policy" class="content-section">
+                <h2 class="text-3xl font-bold text-gray-900 mb-4">Policy, Challenges, and the Path Forward</h2>
+                <p class="text-lg text-gray-600 mb-8 max-w-4xl">
+                    While the technical and economic case for BESS is strong, its deployment is heavily influenced by policy frameworks and overcoming key challenges. Supportive government action is a critical catalyst, while strategic mitigation is needed to address hurdles from cost to public perception.
+                </p>
+                <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200 mb-8">
+                    <h3 class="text-xl font-semibold text-gray-800 mb-4">Key Policy Levers</h3>
+                    <p class="text-gray-600 mb-6">Governments worldwide are accelerating BESS adoption through targeted policies. These incentives and frameworks de-risk investment and create stable markets.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <h4 class="font-semibold text-gray-700">🇺🇸 United States</h4>
+                            <p class="text-gray-600">The Inflation Reduction Act (IRA) provides a significant Investment Tax Credit (ITC) for standalone storage, fueling massive growth.</p>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-700">🇮🇳 India</h4>
+                            <p class="text-gray-600">A multi-pronged strategy including Viability Gap Funding (VGF), waived transmission charges, and incentives for domestic manufacturing.</p>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-gray-700">🇪🇺 European Union</h4>
+                            <p class="text-gray-600">Significant funding through programs like Horizon Europe and policy recommendations to balance the grid.</p>
+                        </div>
+                         <div>
+                            <h4 class="font-semibold text-gray-700">🌍 Global Initiatives</h4>
+                            <p class="text-gray-600">The "Supercharging Battery Storage Initiative" (COP28) aims to align global efforts on policy, financing, and supply chains.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-4">Core Challenges</h3>
+                        <ul class="space-y-3 text-gray-700">
+                            <li><span class="font-bold">High CAPEX:</span> Initial investment remains a significant barrier despite falling costs.</li>
+                            <li><span class="font-bold">Regulatory Hurdles:</span> Lengthy and inconsistent permitting processes can cause major delays.</li>
+                            <li><span class="font-bold">Battery Degradation:</span> Managing battery health over its lifespan is critical for long-term profitability.</li>
+                            <li><span class="font-bold">Safety Concerns:</span> Public perception and fire safety risks require robust standards and education.</li>
+                            <li><span class="font-bold">Environmental Impact:</span> Raw material sourcing and end-of-life recycling need sustainable solutions.</li>
+                        </ul>
+                    </div>
+                    <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-4">Mitigation Strategies</h3>
+                        <ul class="space-y-3 text-gray-700">
+                            <li><span class="font-bold">Revenue Stacking:</span> Maximizing profitability by monetizing all possible grid services.</li>
+                            <li><span class="font-bold">Proactive Engagement:</span> Working with regulators and communities early to streamline approvals.</li>
+                            <li><span class="font-bold">Advanced Monitoring:</span> Using predictive maintenance and digital twins to optimize battery life.</li>
+                            <li><span class="font-bold">Adherence to Standards:</span> Strict compliance with safety standards like NFPA 855 and UL 9540.</li>
+                            <li><span class="font-bold">Circular Economy:</span> Promoting the use of second-life batteries and investing in recycling R&D.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div id="due-diligence" class="content-section">
+                <h2 class="text-3xl font-bold text-gray-900 mb-4">Technical Due Diligence Checklist</h2>
+                <p class="text-lg text-gray-600 mb-8 max-w-4xl">
+                    Before investing in a BESS project, a thorough technical due diligence process is critical to ensure feasibility, reliability, and safety. This checklist outlines the key areas of focus for any potential project.
+                </p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="custom-card bg-white p-6 rounded-xl border border-gray-200">
+                        <h3 class="text-lg font-semibold mb-2">Grid Impact & Interconnection</h3>
+                        <p class="text-sm text-gray-600">Assessing how the BESS will affect the grid's stability, voltage, and frequency, and ensuring compliance with all local grid codes and interconnection requirements.</p>
+                    </div>
+                    <div class="custom-card bg-white p-6 rounded-xl border border-gray-200">
+                        <h3 class="text-lg font-semibold mb-2">Technology & Equipment Review</h3>
+                        <p class="text-sm text-gray-600">Evaluating the performance, reliability, and warranty of the selected battery chemistry, inverters, and energy management systems (EMS).</p>
+                    </div>
+                    <div class="custom-card bg-white p-6 rounded-xl border border-gray-200">
+                        <h3 class="text-lg font-semibold mb-2">System Integration & Control</h3>
+                        <p class="text-sm text-gray-600">Verifying that all components (PV, BESS, existing generators) are compatible and that the control systems are robust enough for automated operations.</p>
+                    </div>
+                    <div class="custom-card bg-white p-6 rounded-xl border border-gray-200">
+                        <h3 class="text-lg font-semibold mb-2">Safety, Health, & Environment</h3>
+                        <p class="text-sm text-gray-600">Confirming that the project meets all fire safety standards (e.g., NFPA 855), environmental regulations, and site-specific hazard mitigation plans.</p>
+                    </div>
+                    <div class="custom-card bg-white p-6 rounded-xl border border-gray-200">
+                        <h3 class="text-lg font-semibold mb-2">Financial Modeling Inputs</h3>
+                        <p class="text-sm text-gray-600">Ensuring the inputs to the financial model, such as projected degradation, round-trip efficiency, and maintenance costs, are technically sound and realistic.</p>
+                    </div>
+                    <div class="custom-card bg-white p-6 rounded-xl border border-gray-200">
+                        <h3 class="text-lg font-semibold mb-2">Permitting & Regulations</h3>
+                        <p class="text-sm text-gray-600">A comprehensive review of the project's adherence to all local, state, and national permitting requirements and regulatory frameworks.</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const navLinks = document.querySelectorAll('.sidebar-link');
+    const contentSections = document.querySelectorAll('.content-section');
+
+    navLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const targetId = link.getAttribute('data-target');
+
+            navLinks.forEach(navLink => navLink.classList.remove('active'));
+            link.classList.add('active');
+
+            contentSections.forEach(section => {
+                if (section.id === targetId) {
+                    section.classList.add('active');
+                } else {
+                    section.classList.remove('active');
+                }
+            });
+        });
+    });
+
+    const liveData = {
+        labels: [],
+        datasets: [{
+            label: 'Solar Power (MW)',
+            data: [],
+            borderColor: '#ffc107',
+            backgroundColor: 'rgba(255, 193, 7, 0.2)',
+            fill: true,
+            tension: 0.2
+        }, {
+            label: 'Battery Power (MW)',
+            data: [],
+            borderColor: '#343a40',
+            backgroundColor: 'rgba(52, 58, 64, 0.2)',
+            fill: true,
+            tension: 0.2
+        }]
+    };
+
+    const liveChartCtx = document.getElementById('liveChart').getContext('2d');
+    const liveChart = new Chart(liveChartCtx, {
+        type: 'line',
+        data: liveData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    type: 'category',
+                    labels: liveData.labels
+                },
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'Power Output (MW)' },
+                    max: 30
+                }
+            },
+            plugins: {
+                legend: { position: 'top' }
+            }
+        }
+    });
+
+    let simulationInterval;
+    let time = 0;
+    const startBtn = document.getElementById('startSimBtn');
+    const stopBtn = document.getElementById('stopSimBtn');
+    const statusText = document.getElementById('statusText');
+
+    function addData() {
+        const solarPower = 20 * Math.sin(time / 20) + 15 + (Math.random() - 0.5) * 5;
+        let batteryPower = 0;
+        if (solarPower > 15) {
+            batteryPower = 0;
+        } else {
+            batteryPower = 15 - solarPower + (Math.random() - 0.5) * 3;
+        }
+
+        liveData.labels.push(`${time % 60}s`);
+        liveData.datasets[0].data.push(Math.max(0, solarPower));
+        liveData.datasets[1].data.push(Math.max(0, batteryPower));
+
+        if (liveData.labels.length > 20) {
+            liveData.labels.shift();
+            liveData.datasets[0].data.shift();
+            liveData.datasets[1].data.shift();
+        }
+
+        liveChart.update();
+        time++;
+    }
+
+    startBtn.addEventListener('click', () => {
+        if (!simulationInterval) {
+            simulationInterval = setInterval(addData, 1000);
+            statusText.textContent = 'Simulation Running...';
+        }
+    });
+
+    stopBtn.addEventListener('click', () => {
+        clearInterval(simulationInterval);
+        simulationInterval = null;
+        statusText.textContent = 'Simulation Stopped';
+    });
+    
+    const financialData = {
+        npv: {
+            labels: ['PV-Only', 'PV + BESS'],
+            datasets: [{
+                label: 'Net Present Value ($M)',
+                data: [-15.0, 25.0],
+                backgroundColor: ['#adb5bd', '#343a40'],
+            }]
+        },
+        irr: {
+            labels: ['PV-Only', 'PV + BESS'],
+            datasets: [{
+                label: 'Internal Rate of Return (%)',
+                data: [5.5, 10.2],
+                backgroundColor: ['#adb5bd', '#343a40'],
+            }]
+        },
+        payback: {
+            labels: ['PV-Only', 'PV + BESS'],
+            datasets: [{
+                label: 'Simple Payback Period (Years)',
+                data: [14.3, 10.5],
+                backgroundColor: ['#adb5bd', '#343a40'],
+            }]
+        }
+    };
+
+    const financialCtx = document.getElementById('financialModelChart').getContext('2d');
+    let financialChart = new Chart(financialCtx, {
+        type: 'bar',
+        data: financialData.npv,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: { display: true, text: 'Value ($ Millions)' }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            let unit = context.chart.data.datasets[0].label.includes('%') ? '%' : (context.chart.data.datasets[0].label.includes('Years') ? ' Years' : ' $M');
+                            return `${context.dataset.label}: ${context.raw}${unit}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    const financialButtons = document.querySelectorAll('.tab-button');
+    financialButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            financialButtons.forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            const metric = button.dataset.metric;
+            financialChart.data = financialData[metric];
+            let yAxisTitle = 'Value';
+            if (metric === 'npv') yAxisTitle = 'Value ($ Millions)';
+            if (metric === 'irr') yAxisTitle = 'Rate (%)';
+            if (metric === 'payback') yAxisTitle = 'Period (Years)';
+            financialChart.options.scales.y.title.text = yAxisTitle;
+            financialChart.update();
+        });
+    });
+
+    const revenueData = {
+        labels: ['PV Generation', 'Energy Arbitrage', 'Ancillary Services', 'Clipping Recapture'],
+        datasets: [{
+            label: 'Annual Revenue ($M)',
+            data: [7.008, 3.6, 0.3, 0.35],
+            backgroundColor: ['#ffc107', '#343a40', '#6c757d', '#adb5bd'],
+            hoverOffset: 4
+        }]
+    };
+
+    const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+    new Chart(revenueCtx, {
+        type: 'doughnut',
+        data: revenueData,
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.label}: $${context.raw.toFixed(3)}M`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+</body>
+</html>
